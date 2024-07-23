@@ -31,6 +31,9 @@ kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 ktlint = { id = "org.jmailen.kotlinter", version = "4.4.1" }
 detekt = { id = "io.gitlab.arturbosch.detekt", version = "1.23.6" }
 
+maven-central-publish = { id = "com.vanniktech.maven.publish", version = "0.29.0" }
+dokka = { id = "org.jetbrains.dokka", version = "1.9.20" }
+
 [bundles]
 coroutines = ["kotlinx-coroutines-core", "kotlinx-coroutines-reactor", "kotlinx-coroutines-slf4j"]
 kotest = ["kotest-assertions"]

@@ -1,3 +1,4 @@
+import com.vanniktech.maven.publish.SonatypeHost
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 import org.gradle.api.tasks.testing.logging.TestLogEvent
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
@@ -9,22 +10,32 @@ plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.ktlint)
     alias(libs.plugins.detekt)
+    alias(libs.plugins.maven.central.publish)
+    alias(libs.plugins.dokka)
 }
 
 allprojects {
+    group = "io.github.vooft"
+    version = System.getenv("TAG") ?: "1.0-SNAPSHOT"
+
     repositories {
         mavenCentral()
     }
 }
 
-subprojects {
+val publishAllTaskName = "publishAndReleaseToMavenCentralAll"
+tasks.create(publishAllTaskName)
 
-    group = "io.github.vooft"
-    version = "1.0-SNAPSHOT"
+val publishAllToMavenLocalTaskName = "publishAllToMavenLocal"
+tasks.create(publishAllToMavenLocalTaskName)
+
+subprojects {
 
     apply(plugin = "org.jetbrains.kotlin.jvm")
     apply(plugin = "org.jmailen.kotlinter")
     apply(plugin = "io.gitlab.arturbosch.detekt")
+    apply(plugin = "com.vanniktech.maven.publish")
+    apply(plugin = "org.jetbrains.dokka")
 
     repositories {
         mavenCentral()
@@ -88,11 +99,41 @@ subprojects {
 // 			}
 // 		}
     }
+
+    mavenPublishing {
+        publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)
+
+        signAllPublications()
+
+        pom {
+            name = "pg-kueue"
+            description = "Kotlin Coroutines PostgresSQL-based message queue using LISTEN/NOTIFYt"
+            url = "https://github.com/vooft/pg-kueue"
+            licenses {
+                license {
+                    name = "The Apache License, Version 2.0"
+                    url = "https://www.apache.org/licenses/LICENSE-2.0.txt"
+                }
+            }
+            scm {
+                connection = "https://github.com/vooft/pg-kueue"
+                url = "https://github.com/vooft/pg-kueue"
+            }
+            developers {
+                developer {
+                    name = "pg-kueue team"
+                }
+            }
+        }
+    }
+
+    tasks.findByName("publishAndReleaseToMavenCentralAll")?.dependsOn(publishAllTaskName)
+    tasks.findByName("publishToMavenLocal")?.dependsOn(publishAllToMavenLocalTaskName)
 }
 
-tasks.create("publish") {
-    subprojects.forEach { project -> project.tasks.findByName("publish")?.let { dependsOn(it) } }
-}
+//tasks.create("publish") {
+//    subprojects.forEach { project -> project.tasks.findByName("publish")?.let { dependsOn(it) } }
+//}
 
 repositories {
     mavenCentral()
