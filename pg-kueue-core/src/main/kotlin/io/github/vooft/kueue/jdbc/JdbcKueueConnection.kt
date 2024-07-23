@@ -1,9 +1,10 @@
 package io.github.vooft.kueue.jdbc
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import io.github.vooft.kueue.KueueChannel
+import io.github.vooft.kueue.KueueTopic
 import io.github.vooft.kueue.KueueConnection
 import io.github.vooft.kueue.KueueMessage
+import io.github.vooft.kueue.common.LoggerHolder
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
@@ -38,15 +39,16 @@ class JdbcKueueConnection(
             } ?: continue
 
             for (pgNotification in batch) {
-                val message = KueueMessage(KueueChannel(pgNotification.name), pgNotification.parameter)
+                val message = KueueMessage(KueueTopic(pgNotification.name), pgNotification.parameter)
                 messages.send(message)
             }
         }
     }
+    override val closed: Boolean get() = connection.isClosed
 
     override val messages = Channel<KueueMessage>(capacity = bufferSize)
 
-    override suspend fun subscribe(channel: KueueChannel) {
+    override suspend fun subscribe(channel: KueueTopic) {
         logger.debug { "Subscribing to $channel" }
 
         try {
@@ -71,7 +73,7 @@ class JdbcKueueConnection(
         }
     }
 
-    override suspend fun send(channel: KueueChannel, message: String) {
+    override suspend fun send(channel: KueueTopic, message: String) {
         logger.debug { "Sending to $channel: $message" }
 
         try {
@@ -113,7 +115,5 @@ class JdbcKueueConnection(
 
     private suspend fun <T> withDispatcher(block: suspend () -> T) = withContext(coroutineContext + dispatcher) { block() }
 
-    companion object {
-        private val logger = KotlinLogging.logger {}
-    }
+    companion object : LoggerHolder()
 }

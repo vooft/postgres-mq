@@ -1,14 +1,14 @@
 package io.github.vooft.kueue
 
 interface KueueProducer {
-    val channel: KueueChannel
-    suspend fun sent(message: String)
+    val channel: KueueTopic
+    suspend fun send(message: String)
 }
 
 interface KueueConsumer {
-    val channel: KueueChannel
+    val channel: KueueTopic
     suspend fun receive(): String
 }
 
 @JvmInline
-value class KueueChannel(val channel: String)
+value class KueueTopic(val channel: String)

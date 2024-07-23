@@ -1,8 +1,8 @@
 package io.github.vooft.kueue
 
 interface KueueManager {
-    suspend fun createProducer(channel: KueueChannel): KueueProducer
-    suspend fun createConsumer(channel: KueueChannel): KueueConsumer
+    suspend fun createProducer(topic: KueueTopic): KueueProducer
+    suspend fun createConsumer(topic: KueueTopic): KueueConsumer
 
     suspend fun close()
 }
