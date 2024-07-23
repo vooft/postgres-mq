@@ -1,11 +1,12 @@
 package io.github.vooft.kueue.impl
 
 import io.github.vooft.kueue.IntegrationTest
+import io.github.vooft.kueue.Kueue
 import io.github.vooft.kueue.KueueConnection
 import io.github.vooft.kueue.KueueConnectionFactory
 import io.github.vooft.kueue.KueueTopic
 import io.github.vooft.kueue.jdbc.JdbcKueueConnection
-import io.github.vooft.kueue.jdbc.JdbcKueueConnectionFactory
+import io.github.vooft.kueue.jdbc.jdbc
 import io.kotest.assertions.nondeterministic.eventually
 import io.kotest.matchers.collections.shouldContainExactly
 import kotlinx.coroutines.delay
@@ -14,7 +15,6 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.junit.jupiter.api.Test
 import org.postgresql.core.BaseConnection
-import org.postgresql.ds.PGSimpleDataSource
 import java.sql.DriverManager
 import java.util.UUID
 import kotlin.time.Duration.Companion.seconds
@@ -22,17 +22,9 @@ import kotlin.time.Duration.Companion.seconds
 class KueueManagerImplTest : IntegrationTest() {
     @Test
     fun `should produce to multiple topics and consume from multiple topics`(): Unit = runBlocking {
-        val connectionFactory = JdbcKueueConnectionFactory(
-            dataSource = PGSimpleDataSource().apply {
-                setUrl(psql.jdbcUrl)
-                user = psql.username
-                password = psql.password
-            }
-        )
-
         val topics = List(10) { KueueTopic(UUID.randomUUID().toString()) }
 
-        val kueueManager = KueueImpl(connectionFactory)
+        val kueueManager = Kueue.jdbc(psql.jdbcUrl, psql.username, psql.password)
         try {
             val producers = topics.map { kueueManager.createProducer(it) }
 
