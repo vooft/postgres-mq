@@ -1,6 +1,6 @@
-rootProject.name = "postgres-mq"
+rootProject.name = "pg-kueue"
 
 include(
-    ":postgres-mq-core"
+    ":pg-kueue-core"
 )
 
