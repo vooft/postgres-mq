@@ -8,13 +8,13 @@ interface KueueConnection {
 
     val messages: ReceiveChannel<KueueMessage>
 
-    suspend fun subscribe(channel: KueueTopic)
-    suspend fun send(channel: KueueTopic, message: String)
+    suspend fun listen(topic: KueueTopic)
+    suspend fun notify(topic: KueueTopic, message: String)
 
     suspend fun close()
 }
 
-data class KueueMessage(val channel: KueueTopic, val message: String)
+data class KueueMessage(val topic: KueueTopic, val message: String)
 
 interface KueueConnectionFactory {
     suspend fun create(): KueueConnection

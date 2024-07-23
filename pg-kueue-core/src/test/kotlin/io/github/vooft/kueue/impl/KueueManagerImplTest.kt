@@ -3,13 +3,16 @@ package io.github.vooft.kueue.impl
 import io.github.vooft.kueue.IntegrationTest
 import io.github.vooft.kueue.KueueTopic
 import io.github.vooft.kueue.jdbc.JdbcKueueConnectionFactory
+import io.kotest.assertions.nondeterministic.eventually
 import io.kotest.matchers.shouldBe
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.junit.jupiter.api.Test
 import org.postgresql.ds.PGSimpleDataSource
-import java.util.StringJoiner
 import java.util.UUID
+import kotlin.time.Duration.Companion.seconds
 
 class KueueManagerImplTest : IntegrationTest() {
     @Test
@@ -27,23 +30,35 @@ class KueueManagerImplTest : IntegrationTest() {
         val kueueManager = KueueManagerImpl(connectionFactory)
         try {
             val producers = topics.map { kueueManager.createProducer(it) }
-            val consumers = topics.map { kueueManager.createConsumer(it) }
-
-            val messages = List(1000) { UUID.randomUUID().toString() }
 
             val mutex = Mutex()
-            val consumed = mutableMapOf<KueueTopic, StringJoiner>()
-
-
-
-            producers.forEachIndexed { index, producer ->
-                producer.send(messages[index])
+            val consumed = mutableMapOf<KueueTopic, MutableList<String>>()
+            val subscriptions = topics.map { topic ->
+                kueueManager.createSubscription(topic) {
+                    mutex.withLock {
+                        consumed.computeIfAbsent(topic) { mutableListOf() }.add(it)
+                    }
+                }
             }
 
-            consumers.forEachIndexed { index, consumer ->
-                val message = consumer.receive()
-                messages[index] shouldBe message
+            val messagesPerTopic = 100
+            val produced = topics.associateWith { MutableList(messagesPerTopic) { UUID.randomUUID().toString() } }
+
+            for (producer in producers) {
+                repeat(messagesPerTopic) {
+                    val message = produced.getValue(producer.topic)[it]
+                    producer.send(message)
+                }
             }
+
+            eventually(5.seconds) {
+                val currentConsumed = mutex.withLock { consumed.toMap() }
+                currentConsumed.all { it.value.size == messagesPerTopic } shouldBe true
+
+                delay(10)
+            }
+
+            subscriptions.forEach { it.close() }
         } finally {
             kueueManager.close()
         }

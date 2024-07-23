@@ -5,27 +5,29 @@ import io.github.vooft.kueue.KueueTopic
 import io.github.vooft.kueue.common.LoggerHolder
 import io.github.vooft.kueue.common.loggingExceptionHandler
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancelAndJoin
-import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import kotlinx.coroutines.channels.ReceiveChannel
-import kotlinx.coroutines.channels.SendChannel
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.isActive
-import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.coroutineContext
 
 internal class KueueMessageBroadcaster(
     private val channel: StateFlow<ReceiveChannel<KueueMessage>>,
-    private val coroutineScope: CoroutineScope = CoroutineScope(SupervisorJob() + loggingExceptionHandler())
+    coroutineScope: CoroutineScope = CoroutineScope(Job() + loggingExceptionHandler())
 ) {
 
-    private val listeners = ConcurrentHashMap<KueueTopic, List<SendChannel<String>>>()
+    private val listenersMutex = Mutex()
+    private val listeners = mutableMapOf<KueueTopic, MutableSharedFlow<String>>()
 
     private val dispatchJob = coroutineScope.launch {
         while (isActive) {
@@ -33,16 +35,9 @@ internal class KueueMessageBroadcaster(
         }
     }
 
-    suspend fun receive(topic: KueueTopic): String {
-        val channel = Channel<String>()
-
-        listeners.compute(topic) { _, value ->
-            val newValue = (value ?: emptyList()) + channel
-            newValue
-        }
-
-        return channel.receive()
-    }
+    suspend fun subscribe(topic: KueueTopic): Flow<String> = listenersMutex.withLock {
+        listeners.computeIfAbsent(topic) { MutableSharedFlow() }
+    }.asSharedFlow()
 
     suspend fun close() {
         dispatchJob.cancelAndJoin()
@@ -56,11 +51,8 @@ internal class KueueMessageBroadcaster(
             return
         }
 
-
         withContext(coroutineContext + NonCancellable) {
-            listeners.remove(message.channel)?.map {
-                coroutineScope.launch { it.send(message.message) }
-            }?.joinAll()
+            listenersMutex.withLock { listeners[message.topic] }?.emit(message.message)
         }
     }
 

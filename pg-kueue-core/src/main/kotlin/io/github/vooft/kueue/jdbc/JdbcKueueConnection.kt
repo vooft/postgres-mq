@@ -1,9 +1,8 @@
 package io.github.vooft.kueue.jdbc
 
-import io.github.oshai.kotlinlogging.KotlinLogging
-import io.github.vooft.kueue.KueueTopic
 import io.github.vooft.kueue.KueueConnection
 import io.github.vooft.kueue.KueueMessage
+import io.github.vooft.kueue.KueueTopic
 import io.github.vooft.kueue.common.LoggerHolder
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
@@ -29,6 +28,9 @@ class JdbcKueueConnection(
     coroutineScope: CoroutineScope = CoroutineScope(Job())
 ) : KueueConnection {
 
+    private val subscriptionsMutex = Mutex()
+    private val subscriptions = mutableSetOf<String>()
+
     private val connectionMutex = Mutex()
     private val dispatcher = Executors.newVirtualThreadPerTaskExecutor().asCoroutineDispatcher()
 
@@ -48,24 +50,29 @@ class JdbcKueueConnection(
 
     override val messages = Channel<KueueMessage>(capacity = bufferSize)
 
-    override suspend fun subscribe(channel: KueueTopic) {
-        logger.debug { "Subscribing to $channel" }
+    override suspend fun listen(topic: KueueTopic) {
+        logger.debug { "Subscribing to $topic" }
+
+        if (!subscriptionsMutex.withLock { subscriptions.add(topic.channel) }) {
+            logger.debug { "Already subscribed to $topic" }
+            return
+        }
 
         try {
             withDispatcher {
                 connectionMutex.withLock {
-                    val escapedChannel = connection.escapeIdentifier(channel.channel)
+                    val escapedChannel = connection.escapeIdentifier(topic.channel)
                     connection.createStatement().use {
                         it.execute("LISTEN $escapedChannel")
                     }
                 }
             }
         } catch (e: Exception) {
-            logger.debug(e) { "Failed to subscribe to $channel" }
+            logger.debug(e) { "Failed to subscribe to $topic" }
             throw e
         }
 
-        logger.debug { "Successfully subscribed to $channel" }
+        logger.debug { "Successfully subscribed to $topic" }
 
         when (listenJob.start()) {
             true -> logger.debug { "Started listen job" }
@@ -73,13 +80,13 @@ class JdbcKueueConnection(
         }
     }
 
-    override suspend fun send(channel: KueueTopic, message: String) {
-        logger.debug { "Sending to $channel: $message" }
+    override suspend fun notify(topic: KueueTopic, message: String) {
+        logger.debug { "Sending to $topic: $message" }
 
         try {
             withDispatcher {
                 connectionMutex.withLock {
-                    val escapedChannel = connection.escapeIdentifier(channel.channel)
+                    val escapedChannel = connection.escapeIdentifier(topic.channel)
                     val escapedMessage = connection.escapeString(message)
 
                     connection.createStatement().use {
@@ -88,11 +95,11 @@ class JdbcKueueConnection(
                 }
             }
         } catch (e: Exception) {
-            logger.debug(e) { "Failed to send message to channel $channel: $message" }
+            logger.debug(e) { "Failed to send message to channel $topic: $message" }
             throw e
         }
 
-        logger.debug { "Successfully sent message to $channel: $message" }
+        logger.debug { "Successfully sent message to $topic: $message" }
     }
 
     override suspend fun close() {

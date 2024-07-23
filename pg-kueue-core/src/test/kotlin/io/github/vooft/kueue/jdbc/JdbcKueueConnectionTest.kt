@@ -17,15 +17,15 @@ class JdbcKueueConnectionTest : IntegrationTest() {
         val jdbc = DriverManager.getConnection(psql.jdbcUrl, psql.username, psql.password)
         val connection = JdbcKueueConnection(jdbc.unwrap(BaseConnection::class.java))
         try {
-            connection.subscribe(channel)
+            connection.listen(channel)
 
-            connection.subscribe(channel)
+            connection.listen(channel)
 
             val message = UUID.randomUUID().toString()
-            connection.send(channel, message)
+            connection.notify(channel, message)
 
             val received = connection.messages.receive()
-            received.channel shouldBe channel
+            received.topic shouldBe channel
             received.message shouldBe message
         } finally {
             connection.close()
