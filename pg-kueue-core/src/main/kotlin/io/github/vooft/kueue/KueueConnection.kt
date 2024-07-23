@@ -4,15 +4,17 @@ import kotlinx.coroutines.channels.ReceiveChannel
 
 interface KueueConnection {
 
+    val closed: Boolean
+
     val messages: ReceiveChannel<KueueMessage>
 
-    suspend fun subscribe(channel: KueueChannel)
-    suspend fun send(channel: KueueChannel, message: String)
+    suspend fun listen(topic: KueueTopic)
+    suspend fun notify(topic: KueueTopic, message: String)
 
     suspend fun close()
 }
 
-data class KueueMessage(val channel: KueueChannel, val message: String)
+data class KueueMessage(val topic: KueueTopic, val message: String)
 
 interface KueueConnectionFactory {
     suspend fun create(): KueueConnection
