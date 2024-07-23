@@ -1,11 +1,11 @@
 package io.github.vooft.kueue.impl
 
+import io.github.vooft.kueue.Kueue
+import io.github.vooft.kueue.Kueue.KueueProducer
+import io.github.vooft.kueue.Kueue.KueueSubscription
 import io.github.vooft.kueue.KueueConnection
 import io.github.vooft.kueue.KueueConnectionFactory
-import io.github.vooft.kueue.KueueManager
 import io.github.vooft.kueue.KueueMessage
-import io.github.vooft.kueue.KueueProducer
-import io.github.vooft.kueue.KueueSubscription
 import io.github.vooft.kueue.KueueTopic
 import io.github.vooft.kueue.common.LoggerHolder
 import io.github.vooft.kueue.common.loggingExceptionHandler
@@ -28,10 +28,10 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
 @Suppress("detekt:UnusedPrivateProperty")
-class KueueManagerImpl(
+class KueueImpl(
     private val connectionFactory: KueueConnectionFactory,
     private val coroutineScope: CoroutineScope = CoroutineScope(SupervisorJob() + loggingExceptionHandler())
-) : KueueManager {
+) : Kueue {
 
     @Volatile
     private var closed = false

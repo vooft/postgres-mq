@@ -32,7 +32,7 @@ class KueueManagerImplTest : IntegrationTest() {
 
         val topics = List(10) { KueueTopic(UUID.randomUUID().toString()) }
 
-        val kueueManager = KueueManagerImpl(connectionFactory)
+        val kueueManager = KueueImpl(connectionFactory)
         try {
             val producers = topics.map { kueueManager.createProducer(it) }
 
@@ -86,7 +86,7 @@ class KueueManagerImplTest : IntegrationTest() {
 
         val topics = List(10) { KueueTopic(UUID.randomUUID().toString()) }
 
-        val kueueManager = KueueManagerImpl(connectionFactory)
+        val kueueManager = KueueImpl(connectionFactory)
         try {
             val producers = topics.map { kueueManager.createProducer(it) }
 
