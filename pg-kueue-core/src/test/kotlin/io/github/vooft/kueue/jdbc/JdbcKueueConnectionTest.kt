@@ -2,11 +2,7 @@ package io.github.vooft.kueue.jdbc
 
 import io.github.vooft.kueue.IntegrationTest
 import io.github.vooft.kueue.KueueChannel
-import io.github.vooft.kueue.KueueMessage
-import io.github.vooft.kueue.collectUntilClosed
 import io.kotest.matchers.shouldBe
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
 import org.postgresql.core.BaseConnection
@@ -23,18 +19,12 @@ class JdbcKueueConnectionTest : IntegrationTest() {
         try {
             connection.subscribe(channel)
 
-            val messages = Channel<KueueMessage>()
-            launch {
-                connection.messages.collectUntilClosed { messages.send(it) }
-                messages.close()
-            }
-
             connection.subscribe(channel)
 
             val message = UUID.randomUUID().toString()
             connection.send(channel, message)
 
-            val received = messages.receive()
+            val received = connection.messages.receive()
             received.channel shouldBe channel
             received.message shouldBe message
         } finally {

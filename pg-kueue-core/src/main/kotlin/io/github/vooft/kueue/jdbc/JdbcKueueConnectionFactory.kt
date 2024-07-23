@@ -8,6 +8,6 @@ import org.postgresql.ds.PGSimpleDataSource
 class JdbcKueueConnectionFactory(private val dataSource: PGSimpleDataSource) : KueueConnectionFactory {
     override suspend fun create(): KueueConnection {
         val connection = dataSource.connection
-        return JdbcKueueConnection(pgConnection = connection.unwrap(BaseConnection::class.java))
+        return JdbcKueueConnection(connection = connection.unwrap(BaseConnection::class.java))
     }
 }

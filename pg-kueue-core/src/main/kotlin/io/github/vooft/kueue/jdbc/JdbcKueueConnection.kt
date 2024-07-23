@@ -4,14 +4,13 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import io.github.vooft.kueue.KueueChannel
 import io.github.vooft.kueue.KueueConnection
 import io.github.vooft.kueue.KueueMessage
-import io.github.vooft.kueue.KueueMessageEnvelope
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.cancelAndJoin
-import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -23,7 +22,7 @@ import java.util.concurrent.Executors
 import kotlin.coroutines.coroutineContext
 
 class JdbcKueueConnection(
-    private val pgConnection: BaseConnection,
+    private val connection: BaseConnection,
     private val notificationTimeout: Duration = Duration.ofMillis(10),
     bufferSize: Int = 100,
     coroutineScope: CoroutineScope = CoroutineScope(Job())
@@ -35,17 +34,17 @@ class JdbcKueueConnection(
     private val listenJob = coroutineScope.launch(context = dispatcher, start = CoroutineStart.LAZY) {
         while (isActive) {
             val batch = connectionMutex.withLock {
-                pgConnection.getNotifications(notificationTimeout.toMillis().toInt())
+                connection.getNotifications(notificationTimeout.toMillis().toInt())
             } ?: continue
 
             for (pgNotification in batch) {
                 val message = KueueMessage(KueueChannel(pgNotification.name), pgNotification.parameter)
-                messages.emit(KueueMessageEnvelope.Message(message))
+                messages.send(message)
             }
         }
     }
 
-    override val messages = MutableSharedFlow<KueueMessageEnvelope>(extraBufferCapacity = bufferSize)
+    override val messages = Channel<KueueMessage>(capacity = bufferSize)
 
     override suspend fun subscribe(channel: KueueChannel) {
         logger.debug { "Subscribing to $channel" }
@@ -53,8 +52,8 @@ class JdbcKueueConnection(
         try {
             withDispatcher {
                 connectionMutex.withLock {
-                    val escapedChannel = pgConnection.escapeIdentifier(channel.channel)
-                    pgConnection.createStatement().use {
+                    val escapedChannel = connection.escapeIdentifier(channel.channel)
+                    connection.createStatement().use {
                         it.execute("LISTEN $escapedChannel")
                     }
                 }
@@ -78,10 +77,10 @@ class JdbcKueueConnection(
         try {
             withDispatcher {
                 connectionMutex.withLock {
-                    val escapedChannel = pgConnection.escapeIdentifier(channel.channel)
-                    val escapedMessage = pgConnection.escapeString(message)
+                    val escapedChannel = connection.escapeIdentifier(channel.channel)
+                    val escapedMessage = connection.escapeString(message)
 
-                    pgConnection.createStatement().use {
+                    connection.createStatement().use {
                         it.execute("NOTIFY $escapedChannel, '$escapedMessage'")
                     }
                 }
@@ -101,10 +100,10 @@ class JdbcKueueConnection(
             listenJob.cancelAndJoin()
             logger.debug { "Cancelled listen job" }
 
-            messages.emit(KueueMessageEnvelope.Closed)
+            messages.close()
             logger.debug { "Emitted closed message" }
 
-            withDispatcher { pgConnection.close() }
+            withDispatcher { connection.close() }
             logger.debug { "Closed PG connection" }
 
             dispatcher.close()

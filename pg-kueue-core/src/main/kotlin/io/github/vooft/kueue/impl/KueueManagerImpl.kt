@@ -10,11 +10,11 @@ import kotlinx.coroutines.CoroutineScope
 @Suppress("detekt:UnusedPrivateProperty")
 class KueueManagerImpl(private val connectionFactory: KueueConnectionFactory, private val coroutineScope: CoroutineScope) : KueueManager {
 
-    override suspend fun createNotifier(channel: KueueChannel): KueueProducer {
+    override suspend fun createProducer(channel: KueueChannel): KueueProducer {
         TODO("Not yet implemented")
     }
 
-    override suspend fun createListener(channel: KueueChannel): KueueConsumer {
+    override suspend fun createConsumer(channel: KueueChannel): KueueConsumer {
         TODO("Not yet implemented")
     }
 
