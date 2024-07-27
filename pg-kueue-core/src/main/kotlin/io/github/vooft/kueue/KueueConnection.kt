@@ -34,6 +34,7 @@ abstract class SimpleKueueConnection<C>(protected val connection: C) : KueueConn
 }
 
 interface KueueConnectionProvider<C, KC : KueueConnection<C>> {
+    suspend fun wrap(connection: C): KC
     suspend fun create(): KC
     suspend fun close(connection: KC)
 }

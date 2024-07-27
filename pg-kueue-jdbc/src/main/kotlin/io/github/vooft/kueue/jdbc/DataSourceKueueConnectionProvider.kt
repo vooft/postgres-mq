@@ -6,6 +6,9 @@ import org.postgresql.core.BaseConnection
 import javax.sql.DataSource
 
 class DataSourceKueueConnectionProvider(private val dataSource: DataSource) : KueueConnectionProvider<BaseConnection, JdbcKueueConnection> {
+
+    override suspend fun wrap(connection: BaseConnection) = JdbcKueueConnection(jdbcConnection = connection)
+
     override suspend fun create(): JdbcKueueConnection = withVirtualThreadDispatcher {
         val connection = dataSource.connection
         JdbcKueueConnection(jdbcConnection = connection.unwrap(BaseConnection::class.java))

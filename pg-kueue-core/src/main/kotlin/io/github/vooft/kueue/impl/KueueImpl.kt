@@ -49,6 +49,8 @@ class KueueImpl<C, KC : KueueConnection<C>>(
     private val multiplexer = Channel<KueueMessage>()
     private val broadcaster = KueueMessageBroadcaster(multiplexer)
 
+    override suspend fun wrap(connection: C) = connectionProvider.wrap(connection)
+
     override suspend fun send(topic: KueueTopic, message: String, kueueConnection: KC?) {
         logger.debug { "Sending via $kueueConnection to $topic: $message" }
         val connection = kueueConnection ?: getDefaultConnection()
