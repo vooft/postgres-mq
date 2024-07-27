@@ -18,6 +18,7 @@ kotlinx-coroutines-slf4j = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-
 slf4j-simple = { module = "org.slf4j:slf4j-simple", version = "2.0.13" }
 
 testcontainers-postgres = { module = "org.testcontainers:postgresql", version = "1.20.0" }
+hikaricp = { module = "com.zaxxer:HikariCP", version = "5.1.0" }
 
 kotest-assertions = { module = "io.kotest:kotest-assertions-core-jvm", version.ref = "kotest" }
 kotest-runner = { module = "io.kotest:kotest-runner-junit5", version.ref = "kotest" }

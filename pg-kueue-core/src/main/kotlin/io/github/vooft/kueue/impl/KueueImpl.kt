@@ -1,118 +1,152 @@
 package io.github.vooft.kueue.impl
 
 import io.github.vooft.kueue.Kueue
-import io.github.vooft.kueue.Kueue.KueueProducer
 import io.github.vooft.kueue.Kueue.KueueSubscription
 import io.github.vooft.kueue.KueueConnection
-import io.github.vooft.kueue.KueueConnectionFactory
+import io.github.vooft.kueue.KueueConnectionProvider
+import io.github.vooft.kueue.KueueConnectionPubSub
+import io.github.vooft.kueue.KueueConnectionPubSub.ListenSubscription
 import io.github.vooft.kueue.KueueMessage
 import io.github.vooft.kueue.KueueTopic
 import io.github.vooft.kueue.common.LoggerHolder
 import io.github.vooft.kueue.common.loggingExceptionHandler
+import io.github.vooft.kueue.common.withNonCancellable
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart.UNDISPATCHED
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.channels.ReceiveChannel
+import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.drop
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
 @Suppress("detekt:UnusedPrivateProperty")
-class KueueImpl(
-    private val connectionFactory: KueueConnectionFactory,
+class KueueImpl<C, KC : KueueConnection<C>>(
+    private val connectionProvider: KueueConnectionProvider<C, KC>,
+    private val pubSub: KueueConnectionPubSub<KC>
+) : Kueue<C, KC> {
+
     private val coroutineScope: CoroutineScope = CoroutineScope(SupervisorJob() + loggingExceptionHandler())
-) : Kueue {
 
     @Volatile
     private var closed = false
 
     private val subscribedTopicsMutex = Mutex()
-    private val subscribedTopics = mutableSetOf<KueueTopic>()
+    private val subscribedTopics = mutableMapOf<KueueTopic, KueueSubscriptionImpl>()
 
-    private val connectionMutex = Mutex()
-    private val connectionState = MutableStateFlow<KueueConnection>(ClosedKueueConnection)
+    private val defaultConnectionMutex = Mutex()
+    private val defaultConnectionState = MutableStateFlow<KC?>(null)
 
-    private val broadcaster = KueueMessageBroadcaster(connectionState.map(coroutineScope) { it.messages })
+    private val multiplexer = Channel<KueueMessage>()
+    private val broadcaster = KueueMessageBroadcaster(multiplexer)
 
-    override suspend fun createProducer(topic: KueueTopic) = object : KueueProducer {
-        override val topic: KueueTopic = topic
-        override suspend fun send(message: String) = getConnection().notify(topic, message)
+    override suspend fun send(topic: KueueTopic, message: String, kueueConnection: KC?) {
+        logger.debug { "Sending via $kueueConnection to $topic: $message" }
+        val connection = kueueConnection ?: getDefaultConnection()
+        pubSub.notify(connection, topic, message)
+        logger.debug { "Successfully sent via $kueueConnection to $topic: $message" }
     }
 
-    override suspend fun createSubscription(topic: KueueTopic, block: suspend (String) -> Unit): KueueSubscription {
-        // record that we want to subscribe
-        subscribedTopicsMutex.withLock { subscribedTopics.add(topic) }
+    override suspend fun subscribe(topic: KueueTopic, block: suspend (String) -> Unit): KueueSubscription {
+        logger.debug { "Subscribing to $topic" }
 
         // subscribe to hot flow
         val flow = broadcaster.subscribe(topic)
 
-        val job = coroutineScope.launch(start = UNDISPATCHED) {
+        val subscriptionJob = coroutineScope.launch(start = UNDISPATCHED) {
             flow.collect { block(it) }
         }
 
-        getConnection().listen(topic) // only start listening after we have subscribed
+        // only start listening after we have subscribed
+        val connection = getDefaultConnection()
+        return subscribedTopicsMutex.withLock(MUTEX_OWNER) {
+            val existing = subscribedTopics.remove(topic) ?: run {
+                logger.info { "Creating new subscription" }
+                val listenSubscription = pubSub.listen(connection, topic)
 
-        return object : KueueSubscription {
-            override val channel: KueueTopic = topic
-            override suspend fun close() = job.cancelAndJoin()
+                // fire and forget is fine, because `messages` will close with the subscription
+                coroutineScope.launch { listenSubscription.messages.consumeEach { multiplexer.send(it) } }
+
+                KueueSubscriptionImpl(topic, listOf(), listenSubscription)
+            }
+
+            existing.copy(subscriptionJobs = existing.subscriptionJobs + subscriptionJob).also {
+                subscribedTopics[topic] = it
+            }
         }
     }
 
     override suspend fun close() {
         closed = true
 
-        subscribedTopicsMutex.withLock { subscribedTopics.clear() }
-        connectionMutex.withLock { connectionState.value.close() }
+        subscribedTopicsMutex.withLock(MUTEX_OWNER) { subscribedTopics.clear() }
+        defaultConnectionMutex.withLock(MUTEX_OWNER) { defaultConnectionState.value?.let { connectionProvider.close(it) } }
         broadcaster.close()
         coroutineScope.cancel()
     }
 
-    private suspend fun getConnection(): KueueConnection {
+    private suspend fun getDefaultConnection(): KC {
         require(!closed) { "KueueManager is closed" }
 
-        return connectionState.openedConnection ?: connectionMutex.withLock {
-            connectionState.openedConnection ?: createConnection().also {
-                connectionState.value = it
+        return defaultConnectionState.openedConnection ?: defaultConnectionMutex.withLock(MUTEX_OWNER) {
+            logger.debug { "Default connection was closed, trying to look for a new one" }
+            defaultConnectionState.openedConnection ?: createConnection().also {
+                defaultConnectionState.value = it
             }
         }
     }
 
-    private suspend fun createConnection(): KueueConnection {
-        val connection = connectionFactory.create()
+    private suspend fun createConnection(): KC {
+        logger.debug { "Creating new connection" }
+        val connection = connectionProvider.create()
+
         try {
-            subscribedTopicsMutex.withLock { subscribedTopics.toSet() }.forEach { connection.listen(it) }
+            // resubscribe
+            subscribedTopicsMutex.withLock(MUTEX_OWNER) {
+                val topics = subscribedTopics.toMap()
+
+                for ((topic, oldSub) in topics) {
+                    val listenSubscription = pubSub.listen(connection, topic)
+                    coroutineScope.launch { listenSubscription.messages.consumeEach { multiplexer.send(it) } }
+                    subscribedTopics[topic] = oldSub.copy(listenSubscription = listenSubscription)
+                }
+            }
         } catch (e: Exception) {
-            connection.close()
+            withNonCancellable {
+                subscribedTopicsMutex.withLock(MUTEX_OWNER) {
+                    subscribedTopics.values.forEach { it.listenSubscription.close() }
+                    subscribedTopics.clear()
+                }
+
+                connectionProvider.close(connection)
+            }
+
             throw e
         }
 
         return connection
     }
 
-    companion object : LoggerHolder()
+    companion object : LoggerHolder() {
+        private const val MUTEX_OWNER = "Kueue"
+    }
+
+    private val StateFlow<KC?>.openedConnection: KC? get() = value?.takeUnless { it.isClosed }
 }
 
-private fun <T, R> StateFlow<T>.map(coroutineScope: CoroutineScope, block: (T) -> R): StateFlow<R> {
-    val initial = block(value)
-    return drop(1).map(block).stateIn(coroutineScope, SharingStarted.Eagerly, initial)
-}
-
-private val StateFlow<KueueConnection>.openedConnection: KueueConnection? get() = value.takeUnless { it.closed }
-
-private object ClosedKueueConnection : KueueConnection {
-    override val closed: Boolean = true
-    override val messages: ReceiveChannel<KueueMessage> = Channel<KueueMessage>().also { runBlocking { close() } }
-    override suspend fun listen(channel: KueueTopic) = error("Connection is closed")
-    override suspend fun notify(channel: KueueTopic, message: String) = error("Connection is closed")
-    override suspend fun close() = Unit
+private data class KueueSubscriptionImpl(
+    override val topic: KueueTopic,
+    val subscriptionJobs: List<Job>,
+    val listenSubscription: ListenSubscription
+) : KueueSubscription {
+    override suspend fun close() = withNonCancellable {
+        listenSubscription.close()
+        subscriptionJobs.forEach { it.cancel() }
+        subscriptionJobs.joinAll()
+    }
 }

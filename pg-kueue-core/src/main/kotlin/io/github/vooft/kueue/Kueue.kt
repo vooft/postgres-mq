@@ -1,18 +1,13 @@
 package io.github.vooft.kueue
 
-interface Kueue {
-    suspend fun createProducer(topic: KueueTopic): KueueProducer
-    suspend fun createSubscription(topic: KueueTopic, block: suspend (String) -> Unit): KueueSubscription
+interface Kueue<C, KC : KueueConnection<C>> {
+    suspend fun send(topic: KueueTopic, message: String, kueueConnection: KC? = null)
+    suspend fun subscribe(topic: KueueTopic, block: suspend (String) -> Unit): KueueSubscription
 
     suspend fun close()
 
-    interface KueueProducer {
-        val topic: KueueTopic
-        suspend fun send(message: String)
-    }
-
     interface KueueSubscription {
-        val channel: KueueTopic
+        val topic: KueueTopic
         suspend fun close()
     }
 

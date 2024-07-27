@@ -8,4 +8,5 @@ dependencies {
     testImplementation(libs.bundles.junit)
     testImplementation(libs.bundles.kotest)
     testImplementation(libs.testcontainers.postgres)
+    testImplementation(libs.hikaricp)
 }

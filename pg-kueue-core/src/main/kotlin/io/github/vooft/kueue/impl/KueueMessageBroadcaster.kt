@@ -12,7 +12,6 @@ import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -22,7 +21,7 @@ import kotlinx.coroutines.withContext
 import kotlin.coroutines.coroutineContext
 
 internal class KueueMessageBroadcaster(
-    private val channel: StateFlow<ReceiveChannel<KueueMessage>>,
+    private val channel: ReceiveChannel<KueueMessage>,
     coroutineScope: CoroutineScope = CoroutineScope(Job() + loggingExceptionHandler())
 ) {
 
@@ -45,7 +44,7 @@ internal class KueueMessageBroadcaster(
 
     private suspend fun dispatch() {
         val message = try {
-            channel.value.receive()
+            channel.receive()
         } catch (_: ClosedReceiveChannelException) {
             // channel is closed, which probably means the connection is being replaced
             return
