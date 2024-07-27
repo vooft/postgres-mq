@@ -1,6 +1,7 @@
 package io.github.vooft.kueue.jdbc
 
 import io.github.vooft.kueue.KueueConnectionPubSub
+import io.github.vooft.kueue.KueueConnectionPubSub.ListenSubscription
 import io.github.vooft.kueue.KueueMessage
 import io.github.vooft.kueue.KueueTopic
 import io.github.vooft.kueue.common.LoggerHolder
@@ -12,12 +13,18 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.intellij.lang.annotations.Language
 import org.postgresql.core.BaseConnection
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 
-class JdbcKueueConnectionPubSub(private val bufferSize: Int = 100) : KueueConnectionPubSub<JdbcKueueConnection> {
+class JdbcKueueConnectionPubSub(private val bufferSize: Int = 100, private val notificationDelay: Duration = 10.milliseconds) :
+    KueueConnectionPubSub<JdbcKueueConnection> {
 
     private val coroutineScope = CoroutineScope(SupervisorJob() + loggingExceptionHandler())
 
@@ -43,27 +50,46 @@ class JdbcKueueConnectionPubSub(private val bufferSize: Int = 100) : KueueConnec
         logger.debug { "Successfully sent message to $topic: $message" }
     }
 
-    override suspend fun listen(kueueConnection: JdbcKueueConnection, topic: KueueTopic): KueueConnectionPubSub.ListenSubscription {
-        kueueConnection.use { connection ->
-            val escapedChannel = connection.escapeIdentifier(topic.channel)
-            connection.execute("LISTEN $escapedChannel")
-        }
-
+    override suspend fun listen(kueueConnection: JdbcKueueConnection): ListenSubscription {
         val channel = Channel<KueueMessage>(capacity = bufferSize)
         val job = coroutineScope.launch {
-            while (isActive) {
+            while (isActive && !kueueConnection.isClosed) {
                 val messages = withNonCancellable { kueueConnection.queryNotifications() }
                 messages.forEach { channel.send(it) }
+                delay(notificationDelay)
             }
         }
 
-        return object : KueueConnectionPubSub.ListenSubscription {
+        val mutex = Mutex()
+        val listenedTopics = mutableSetOf<KueueTopic>()
+
+        return object : ListenSubscription {
+
             override val messages = channel
-            override suspend fun close() {
-                withNonCancellable {
+
+            override val isClosed: Boolean get() = kueueConnection.isClosed
+
+            override suspend fun listen(topic: KueueTopic) {
+                if (mutex.withLock { listenedTopics.add(topic) }) {
                     kueueConnection.use { connection ->
                         val escapedChannel = connection.escapeIdentifier(topic.channel)
-                        connection.execute("UNLISTEN $escapedChannel")
+                        connection.execute("LISTEN $escapedChannel")
+                    }
+                }
+            }
+
+            override suspend fun unlisten(topic: KueueTopic) {
+                kueueConnection.use { connection ->
+                    val escapedChannel = connection.escapeIdentifier(topic.channel)
+                    connection.execute("UNLISTEN $escapedChannel")
+                }
+            }
+
+            override suspend fun close() {
+                withNonCancellable {
+                    val topics = mutex.withLock { listenedTopics.toList() }
+                    for (topic in topics) {
+                        unlisten(topic)
                     }
 
                     job.cancelAndJoin()

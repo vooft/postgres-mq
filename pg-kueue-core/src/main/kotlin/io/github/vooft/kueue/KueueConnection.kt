@@ -41,10 +41,13 @@ interface KueueConnectionProvider<C, KC : KueueConnection<C>> {
 interface KueueConnectionPubSub<KC : KueueConnection<*>> {
 
     suspend fun notify(kueueConnection: KC, topic: KueueTopic, message: String)
-    suspend fun listen(kueueConnection: KC, topics: KueueTopic): ListenSubscription
+    suspend fun listen(kueueConnection: KC): ListenSubscription
 
     interface ListenSubscription {
         val messages: ReceiveChannel<KueueMessage>
+        val isClosed: Boolean
+        suspend fun listen(topic: KueueTopic)
+        suspend fun unlisten(topic: KueueTopic)
         suspend fun close()
     }
 }
