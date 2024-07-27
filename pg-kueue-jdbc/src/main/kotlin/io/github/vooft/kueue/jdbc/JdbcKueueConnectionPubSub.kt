@@ -8,7 +8,6 @@ import io.github.vooft.kueue.common.LoggerHolder
 import io.github.vooft.kueue.common.loggingExceptionHandler
 import io.github.vooft.kueue.common.withNonCancellable
 import io.github.vooft.kueue.common.withVirtualThreadDispatcher
-import io.github.vooft.kueue.use
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancelAndJoin
@@ -32,7 +31,7 @@ class JdbcKueueConnectionPubSub(private val bufferSize: Int = 100, private val n
         logger.debug { "Sending to $topic: $message" }
 
         try {
-            kueueConnection.use { connection ->
+            kueueConnection.useUnwrapped { connection ->
                 withNonCancellable {
                     val escapedChannel = connection.escapeIdentifier(topic.channel)
                     val escapedMessage = connection.escapeString(message)
@@ -71,7 +70,7 @@ class JdbcKueueConnectionPubSub(private val bufferSize: Int = 100, private val n
 
             override suspend fun listen(topic: KueueTopic) {
                 if (mutex.withLock { listenedTopics.add(topic) }) {
-                    kueueConnection.use { connection ->
+                    kueueConnection.useUnwrapped { connection ->
                         val escapedChannel = connection.escapeIdentifier(topic.channel)
                         connection.execute("LISTEN $escapedChannel")
                     }
@@ -79,7 +78,7 @@ class JdbcKueueConnectionPubSub(private val bufferSize: Int = 100, private val n
             }
 
             override suspend fun unlisten(topic: KueueTopic) {
-                kueueConnection.use { connection ->
+                kueueConnection.useUnwrapped { connection ->
                     val escapedChannel = connection.escapeIdentifier(topic.channel)
                     connection.execute("UNLISTEN $escapedChannel")
                 }
@@ -98,7 +97,7 @@ class JdbcKueueConnectionPubSub(private val bufferSize: Int = 100, private val n
         }
     }
 
-    private suspend fun JdbcKueueConnection.queryNotifications(): List<KueueMessage> = use { connection ->
+    private suspend fun JdbcKueueConnection.queryNotifications(): List<KueueMessage> = useUnwrapped { connection ->
         withVirtualThreadDispatcher { connection.notifications }
             ?.map { KueueMessage(KueueTopic(it.name), it.parameter) }
             ?: listOf()
@@ -112,3 +111,6 @@ private suspend fun BaseConnection.execute(@Language("SQL") query: String) = wit
         it.execute(query)
     }
 }
+
+private suspend fun <T> JdbcKueueConnection.useUnwrapped(block: suspend (BaseConnection) -> T): T =
+    block(jdbcConnection.unwrap(BaseConnection::class.java))

@@ -2,16 +2,15 @@ package io.github.vooft.kueue.jdbc
 
 import io.github.vooft.kueue.KueueConnectionProvider
 import io.github.vooft.kueue.common.withVirtualThreadDispatcher
-import org.postgresql.core.BaseConnection
+import java.sql.Connection
 import javax.sql.DataSource
 
-class DataSourceKueueConnectionProvider(private val dataSource: DataSource) : KueueConnectionProvider<BaseConnection, JdbcKueueConnection> {
+class DataSourceKueueConnectionProvider(private val dataSource: DataSource) : KueueConnectionProvider<Connection, JdbcKueueConnection> {
 
-    override suspend fun wrap(connection: BaseConnection) = JdbcKueueConnection(jdbcConnection = connection)
+    override suspend fun wrap(connection: Connection) = JdbcKueueConnection(jdbcConnection = connection)
 
     override suspend fun create(): JdbcKueueConnection = withVirtualThreadDispatcher {
-        val connection = dataSource.connection
-        JdbcKueueConnection(jdbcConnection = connection.unwrap(BaseConnection::class.java))
+        JdbcKueueConnection(jdbcConnection = dataSource.connection)
     }
 
     override suspend fun close(connection: JdbcKueueConnection) = withVirtualThreadDispatcher {

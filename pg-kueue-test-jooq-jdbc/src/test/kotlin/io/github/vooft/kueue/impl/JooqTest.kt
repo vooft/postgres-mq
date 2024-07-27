@@ -2,145 +2,38 @@ package io.github.vooft.kueue.impl
 
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
+import io.github.vooft.kueue.HappyPathTest
 import io.github.vooft.kueue.IntegrationTest
 import io.github.vooft.kueue.Kueue
-import io.github.vooft.kueue.KueueConnectionProvider
 import io.github.vooft.kueue.KueueTopic
-import io.github.vooft.kueue.jdbc.JdbcKueueConnection
-import io.github.vooft.kueue.jdbc.JdbcKueueConnectionPubSub
-import io.github.vooft.kueue.jdbc.jdbc
+import io.github.vooft.kueue.jooq.jdbc.jooq
+import io.github.vooft.kueue.jooq.jdbc.send
 import io.kotest.assertions.nondeterministic.continually
 import io.kotest.assertions.nondeterministic.eventually
 import io.kotest.matchers.collections.shouldContainExactly
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import org.jooq.SQLDialect
+import org.jooq.impl.DSL
 import org.junit.jupiter.api.Test
 import org.postgresql.core.BaseConnection
-import java.sql.DriverManager
 import java.util.UUID
 import kotlin.time.Duration.Companion.seconds
 
-class KueueManagerImplTest : IntegrationTest() {
+class JooqTest : IntegrationTest() {
     @Test
     fun `should produce to multiple topics and consume from multiple topics`(): Unit = runBlocking {
-        val topics = List(10) { KueueTopic(UUID.randomUUID().toString()) }
-
-        val dataSource = HikariDataSource(
+        HikariDataSource(
             HikariConfig().apply {
                 jdbcUrl = psql.jdbcUrl
                 username = psql.username
                 password = psql.password
             }
-        )
-
-        val kueue = Kueue.jdbc(dataSource)
-        try {
-            val mutex = Mutex()
-            val consumed = mutableMapOf<KueueTopic, MutableList<String>>()
-            val subscriptions = topics.map { topic ->
-                kueue.subscribe(topic) {
-                    mutex.withLock { consumed.computeIfAbsent(topic) { mutableListOf() }.add(it) }
-                }
+        ).use {
+            with(HappyPathTest) {
+                Kueue.jooq(it).test()
             }
-
-            val messagesPerTopic = 100
-            val produced = topics.associateWith { MutableList(messagesPerTopic) { UUID.randomUUID().toString() } }
-
-            for (topic in topics) {
-                repeat(messagesPerTopic) {
-                    val message = produced.getValue(topic)[it]
-                    kueue.send(topic, message)
-                }
-            }
-
-            eventually(1.seconds) {
-                for ((topic, messages) in produced) {
-                    consumed[topic] shouldContainExactly messages
-                }
-
-                delay(10)
-            }
-
-            subscriptions.forEach { it.close() }
-        } finally {
-            kueue.close()
-            dataSource.close()
-        }
-    }
-
-    @Test
-    fun `should resubscribe after connection closure`(): Unit = runBlocking {
-        val connection1 = DriverManager.getConnection(psql.jdbcUrl, psql.username, psql.password)
-        val connection2 = DriverManager.getConnection(psql.jdbcUrl, psql.username, psql.password)
-
-        val remainingConnections = mutableListOf(connection1, connection2)
-        val connectionFactory = object : KueueConnectionProvider<BaseConnection, JdbcKueueConnection> {
-            override suspend fun wrap(connection: BaseConnection) = JdbcKueueConnection(connection)
-
-            override suspend fun create(): JdbcKueueConnection {
-                val connection = remainingConnections.removeFirst()
-                return JdbcKueueConnection(connection.unwrap(BaseConnection::class.java))
-            }
-
-            override suspend fun close(connection: JdbcKueueConnection) = Unit
-        }
-
-        val topics = List(10) { KueueTopic(UUID.randomUUID().toString()) }
-
-        val kueue = KueueImpl(connectionFactory, JdbcKueueConnectionPubSub())
-        try {
-            val mutex = Mutex()
-            val consumed = mutableMapOf<KueueTopic, MutableList<String>>()
-            val subscriptions = topics.map { topic ->
-                kueue.subscribe(topic) {
-                    mutex.withLock {
-                        consumed.computeIfAbsent(topic) { mutableListOf() }.add(it)
-                    }
-                }
-            }
-
-            val batch1 = topics.associateWith { List(10) { UUID.randomUUID().toString() } }
-            val batch2 = topics.associateWith { List(10) { UUID.randomUUID().toString() } }
-
-            for ((topic, messages) in batch1) {
-                for (message in messages) {
-                    kueue.send(topic, message)
-                }
-            }
-
-            eventually(1.seconds) {
-                val currentConsumed = mutex.withLock { consumed.toMap() }
-                for ((topic, messages) in currentConsumed) {
-                    messages shouldContainExactly batch1.getValue(topic)
-                }
-
-                delay(10)
-            }
-
-            consumed.clear()
-            connection1.close()
-
-            for ((topic, messages) in batch2) {
-                for (message in messages) {
-                    kueue.send(topic, message)
-                }
-            }
-
-            eventually(1.seconds) {
-                val currentConsumed = mutex.withLock { consumed.toMap() }
-                for ((topic, messages) in currentConsumed) {
-                    messages shouldContainExactly batch2.getValue(topic)
-                }
-
-                delay(10)
-            }
-
-            subscriptions.forEach { it.close() }
-        } finally {
-            kueue.close()
-            connection2.close()
         }
     }
 
@@ -156,7 +49,7 @@ class KueueManagerImplTest : IntegrationTest() {
 
         val topic = KueueTopic(UUID.randomUUID().toString())
 
-        val kueue = Kueue.jdbc(dataSource)
+        val kueue = Kueue.jooq(dataSource)
 
         try {
             val mutex = Mutex()
@@ -184,10 +77,10 @@ class KueueManagerImplTest : IntegrationTest() {
             val transactionConnection = dataSource.connection
             transactionConnection.autoCommit = false
 
-            val kueueTransactionConnection = kueue.wrap(transactionConnection.unwrap(BaseConnection::class.java))
+            val txnDsl = DSL.using(transactionConnection, SQLDialect.POSTGRES)
 
             // send transaction message 1
-            kueue.send(topic, txn1, kueueTransactionConnection)
+            kueue.send(topic, txn1, txnDsl)
 
             // send normal message in-between transaction ones
             kueue.send(topic, during)
@@ -198,7 +91,7 @@ class KueueManagerImplTest : IntegrationTest() {
             }
 
             // send second transaction message
-            kueue.send(topic, txn2, kueueTransactionConnection)
+            kueue.send(topic, txn2, txnDsl)
 
             // still no txn messages
             mutex.withLock { consumed.toList() } shouldContainExactly listOf(before, during)
@@ -213,7 +106,7 @@ class KueueManagerImplTest : IntegrationTest() {
 
             // send normal message after transaction over the transaction connection
             transactionConnection.autoCommit = true
-            kueue.send(topic, after, kueueTransactionConnection)
+            kueue.send(topic, after, txnDsl)
 
             // all messages added
             eventually(1.seconds) {
@@ -239,7 +132,7 @@ class KueueManagerImplTest : IntegrationTest() {
 
         val topic = KueueTopic(UUID.randomUUID().toString())
 
-        val kueue = Kueue.jdbc(dataSource)
+        val kueue = Kueue.jooq(dataSource)
 
         try {
             val mutex = Mutex()
