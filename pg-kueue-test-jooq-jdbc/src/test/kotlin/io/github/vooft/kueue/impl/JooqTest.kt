@@ -32,7 +32,7 @@ class JooqTest : IntegrationTest() {
             }
         ).use {
             with(HappyPathTest) {
-                Kueue.jooq(it).test()
+                Kueue.jooq(it).happyPathTest()
             }
         }
     }

@@ -35,7 +35,7 @@ class JdbcTest : IntegrationTest() {
             }
         ).use {
             with(HappyPathTest) {
-                Kueue.jdbc(it).test()
+                Kueue.jdbc(it).happyPathTest()
             }
         }
     }

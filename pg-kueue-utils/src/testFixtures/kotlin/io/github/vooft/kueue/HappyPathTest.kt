@@ -9,7 +9,8 @@ import java.util.UUID
 import kotlin.time.Duration.Companion.seconds
 
 object HappyPathTest {
-    suspend fun Kueue<*, *>.test() {
+    @Suppress("detekt:MemberNameEqualsClassName")
+    suspend fun Kueue<*, *>.happyPathTest() {
         val topics = List(10) { KueueTopic(UUID.randomUUID().toString()) }
         try {
             val mutex = Mutex()
