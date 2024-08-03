@@ -8,15 +8,18 @@ Kotlin Coroutines PostgresSQL-based message queue using LISTEN/NOTIFY
 
 Everything is String-based and for now just follows normal LISTEN/NOTIFY rules.
 
-# Supported database SPIs
+## Supported database SPIs
 This library was designed to be used with different SPIs, providing similar coroutines-based interface.
 
 Currently, only JDBC-based SPI is implemented + helper functions for jOOQ.
 
-## JDBC
+### JDBC
 pg-kueue uses virtual threads to make any calls to the database in a non-blocking fashion.
 
 It works with any `java.sql.DataSource` implementation, reserving one connection for listening to notifications.
+
+### jOOQ
+There is a module that provides a number of helper methods that can work with a jOOQ `DSLContext` and mostly delegates to the JDBC module.
 
 # JDBC usage
 
