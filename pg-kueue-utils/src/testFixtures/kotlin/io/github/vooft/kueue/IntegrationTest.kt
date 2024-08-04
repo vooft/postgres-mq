@@ -10,17 +10,6 @@ open class IntegrationTest {
             withUsername("test")
             withPassword("test")
             start()
-
-            createConnection("").use { connection ->
-                for (migration in MIGRATIONS) {
-                    connection.createStatement().use { statement ->
-                        statement.execute(migration)
-                    }
-                }
-            }
         }
     }
 }
-
-private const val KUEUE_EVENTS_MIGRATION = "/database/1_kueue_events.sql"
-private val MIGRATIONS = listOf(KUEUE_EVENTS_MIGRATION).map { IntegrationTest::class.java.getResource(it).readText() }

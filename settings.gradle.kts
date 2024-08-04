@@ -1,11 +1,16 @@
 rootProject.name = "pg-kueue"
 
 include(
+    ":pg-kueue-types",
     ":pg-kueue-core",
-    ":pg-kueue-jooq-jdbc",
     ":pg-kueue-jdbc",
     ":pg-kueue-utils",
-    ":pg-kueue-test-jdbc",
-    ":pg-kueue-test-jooq-jdbc",
+
+    ":pg-kueue-pubsub:pg-kueue-pubsub-core",
+    ":pg-kueue-pubsub:pg-kueue-pubsub-jdbc",
+
+    ":pg-kueue-transport:pg-kueue-transport-core",
+    ":pg-kueue-transport:pg-kueue-transport-jdbc",
+    ":pg-kueue-transport:pg-kueue-transport-jdbc-test",
 )
 

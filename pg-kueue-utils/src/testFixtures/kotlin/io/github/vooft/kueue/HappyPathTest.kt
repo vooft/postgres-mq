@@ -10,7 +10,7 @@ import kotlin.time.Duration.Companion.seconds
 
 object HappyPathTest {
     @Suppress("detekt:MemberNameEqualsClassName")
-    suspend fun Kueue<*, *>.happyPathTest() {
+    suspend fun KueuePubSub<*, *>.happyPathTest() {
         val topics = List(10) { KueueTopic(UUID.randomUUID().toString()) }
         try {
             val mutex = Mutex()
@@ -27,7 +27,7 @@ object HappyPathTest {
             for (topic in topics) {
                 repeat(messagesPerTopic) {
                     val message = produced.getValue(topic)[it]
-                    send(topic, message)
+                    publish(topic, message)
                 }
             }
 
