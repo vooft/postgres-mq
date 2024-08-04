@@ -43,7 +43,11 @@ style:
         value: 'STOPSHIP:'
   MagicNumber:
     active: false
-    ignoreCompanionObjectPropertyDeclaration: true
-    ignoreRanges: true
   ReturnCount:
     max: 3
+  UseOrEmpty:
+    active: false
+
+coroutines:
+  SuspendFunWithFlowReturnType:
+    active: false
