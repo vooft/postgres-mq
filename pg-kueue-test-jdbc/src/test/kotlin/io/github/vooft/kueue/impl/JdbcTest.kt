@@ -8,8 +8,8 @@ import io.github.vooft.kueue.Kueue
 import io.github.vooft.kueue.KueueConnectionProvider
 import io.github.vooft.kueue.KueueTopic
 import io.github.vooft.kueue.jdbc.JdbcKueueConnection
-import io.github.vooft.kueue.jdbc.JdbcKueueConnectionPubSub
 import io.github.vooft.kueue.jdbc.JdbcKueueEventPersister
+import io.github.vooft.kueue.jdbc.JdbcKueueTransport
 import io.github.vooft.kueue.jdbc.jdbc
 import io.kotest.assertions.nondeterministic.continually
 import io.kotest.assertions.nondeterministic.eventually
@@ -62,7 +62,7 @@ class JdbcTest : IntegrationTest() {
 
         val kueue = KueueImpl(
             connectionProvider = connectionFactory,
-            pubSub = JdbcKueueConnectionPubSub(),
+            pubSub = JdbcKueueTransport(),
             persister = JdbcKueueEventPersister()
         )
         try {

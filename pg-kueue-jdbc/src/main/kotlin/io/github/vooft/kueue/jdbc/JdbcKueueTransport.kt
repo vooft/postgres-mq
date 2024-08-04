@@ -1,9 +1,9 @@
 package io.github.vooft.kueue.jdbc
 
-import io.github.vooft.kueue.KueueConnectionPubSub
-import io.github.vooft.kueue.KueueConnectionPubSub.ListenSubscription
 import io.github.vooft.kueue.KueueMessage
 import io.github.vooft.kueue.KueueTopic
+import io.github.vooft.kueue.KueueTransport
+import io.github.vooft.kueue.KueueTransport.ListenSubscription
 import io.github.vooft.kueue.common.LoggerHolder
 import io.github.vooft.kueue.common.loggingExceptionHandler
 import io.github.vooft.kueue.common.withNonCancellable
@@ -20,8 +20,8 @@ import kotlinx.coroutines.sync.withLock
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
-class JdbcKueueConnectionPubSub(private val bufferSize: Int = 100, private val notificationDelay: Duration = 10.milliseconds) :
-    KueueConnectionPubSub<JdbcKueueConnection> {
+class JdbcKueueTransport(private val bufferSize: Int = 100, private val notificationDelay: Duration = 10.milliseconds) :
+    KueueTransport<JdbcKueueConnection> {
 
     private val coroutineScope = CoroutineScope(SupervisorJob() + loggingExceptionHandler())
 

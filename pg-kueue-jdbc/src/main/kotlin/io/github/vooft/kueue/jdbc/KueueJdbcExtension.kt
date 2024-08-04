@@ -8,7 +8,7 @@ import javax.sql.DataSource
 
 fun Kueue.Companion.jdbc(dataSource: DataSource, persistEvents: Boolean): Kueue<Connection, JdbcKueueConnection> = KueueImpl(
     connectionProvider = DataSourceKueueConnectionProvider(dataSource),
-    pubSub = JdbcKueueConnectionPubSub(),
+    pubSub = JdbcKueueTransport(),
     persister = when (persistEvents) {
         true -> JdbcKueueEventPersister()
         false -> null

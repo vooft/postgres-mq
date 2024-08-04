@@ -39,7 +39,7 @@ interface KueueConnectionProvider<C, KC : KueueConnection<C>> {
     suspend fun close(connection: KC)
 }
 
-interface KueueConnectionPubSub<KC : KueueConnection<*>> {
+interface KueueTransport<KC : KueueConnection<*>> {
 
     suspend fun notify(kueueConnection: KC, topic: KueueTopic, message: String)
     suspend fun listen(kueueConnection: KC): ListenSubscription

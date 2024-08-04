@@ -5,15 +5,15 @@ import io.github.vooft.kueue.KueueTopic
 import io.github.vooft.kueue.impl.KueueImpl
 import io.github.vooft.kueue.jdbc.DataSourceKueueConnectionProvider
 import io.github.vooft.kueue.jdbc.JdbcKueueConnection
-import io.github.vooft.kueue.jdbc.JdbcKueueConnectionPubSub
 import io.github.vooft.kueue.jdbc.JdbcKueueEventPersister
+import io.github.vooft.kueue.jdbc.JdbcKueueTransport
 import org.jooq.DSLContext
 import java.sql.Connection
 import javax.sql.DataSource
 
 typealias JoodJdbcKueueConnection = JdbcKueueConnection
 typealias JooqDataSourceKueueConnectionProvider = DataSourceKueueConnectionProvider
-typealias JooqJdbcKueueConnectionPubSub = JdbcKueueConnectionPubSub
+typealias JooqJdbcKueueConnectionPubSub = JdbcKueueTransport
 typealias JooqJdbcKueueEventPersister = JdbcKueueEventPersister
 
 fun Kueue.Companion.jooq(dataSource: DataSource, persistEvents: Boolean): Kueue<Connection, JoodJdbcKueueConnection> = KueueImpl(

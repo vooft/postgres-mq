@@ -4,11 +4,11 @@ import io.github.vooft.kueue.Kueue
 import io.github.vooft.kueue.Kueue.KueueSubscription
 import io.github.vooft.kueue.KueueConnection
 import io.github.vooft.kueue.KueueConnectionProvider
-import io.github.vooft.kueue.KueueConnectionPubSub
-import io.github.vooft.kueue.KueueConnectionPubSub.ListenSubscription
 import io.github.vooft.kueue.KueueEventPersister
 import io.github.vooft.kueue.KueueMessage
 import io.github.vooft.kueue.KueueTopic
+import io.github.vooft.kueue.KueueTransport
+import io.github.vooft.kueue.KueueTransport.ListenSubscription
 import io.github.vooft.kueue.common.LoggerHolder
 import io.github.vooft.kueue.common.loggingExceptionHandler
 import io.github.vooft.kueue.common.withNonCancellable
@@ -28,7 +28,7 @@ import kotlinx.coroutines.sync.withLock
 @Suppress("detekt:UnusedPrivateProperty")
 class KueueImpl<C, KC : KueueConnection<C>>(
     private val connectionProvider: KueueConnectionProvider<C, KC>,
-    private val pubSub: KueueConnectionPubSub<KC>,
+    private val pubSub: KueueTransport<KC>,
     private val persister: KueueEventPersister<KC>?
 ) : Kueue<C, KC> {
 
