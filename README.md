@@ -38,12 +38,12 @@ dependencies {
 ```kotlin
 val dataSource = createMyDataSource()
 
-val kueue = Kueue.jdbc(dataSource)
+val kueue = KueuePubSub.jdbc(dataSource)
 val subscription = kueue.subscribe(KueueTopic("my_topic")) { message: String ->
     println("Received message: $message")
 }
 
-kueue.send(KueueTopic("my_topic"), "Hello, world!")
+kueue.publish(KueueTopic("my_topic"), "Hello, world!")
 // will print after a tiny delay: "Received message: Hello, world!"
 ```
 
@@ -60,18 +60,18 @@ kueue.close()
 ```
 
 ## Transactional usage
-To send a message using existing transaction, you should provide the transactional connection.
+To publish a message using existing transaction, you should provide the transactional connection.
 
 Normally, API accepts a instance of a wrapped connection `KueueConnection`, there is a helper method to create it:
 ```kotlin
 val transactionalConnection = myBeginTransaction()
-kueue.send(KueueTopic("my_topic"), "Hello, world!", kueue.wrap(transactionalConnection))
+kueue.publish(KueueTopic("my_topic"), "Hello, world!", kueue.wrap(transactionalConnection))
 ``` 
 
-There is also an extension function for a specific library to simplify transactional sending:
+There is also an extension function for a specific library to simplify transactional publishing:
 ```kotlin
 val transactionalConnection = myBeginTransaction()
-kueue.send(KueueTopic("my_topic"), "Hello, world!", transactionalConnection) // an extension function must be imported explicitly
+kueue.publish(KueueTopic("my_topic"), "Hello, world!", transactionalConnection) // an extension function must be imported explicitly
 ```
 
 ## Persistence
@@ -92,7 +92,7 @@ repositories {
 }
 
 dependencies {
-    implementation("io.github.vooft:pg-kueue-jooq-jdbc:<version>")
+    implementation("io.github.vooft:pg-kueue-pubsub-jdbc:<version>")
 }
 ```
 
@@ -100,9 +100,9 @@ dependencies {
 ```kotlin
 val dslContext = createMyDslContext()
 
-// there is a helper method to create a Kueue instance using, for example, a non-transactional DSLContext
-val kueue = Kueue.jooq(dslContext)
+// there is a helper method to create a KueuePubSub instance using, for example, a non-transactional DSLContext
+val kueue = KueuePubSub.jooq(dslContext)
 
-// also there is an extension method that accepts a transactional DSLContext to send notification within a transaction
-kueue.send(KueueTopic("my_topic"), "Hello, world!", myTransactionalDslContext)
+// also there is an extension method that accepts a transactional DSLContext to publish notification within a transaction
+kueue.publish(KueueTopic("my_topic"), "Hello, world!", myTransactionalDslContext)
 ```
