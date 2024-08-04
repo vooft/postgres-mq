@@ -2,8 +2,6 @@ rootProject.name = "pg-kueue"
 
 include(
     ":pg-kueue-types",
-    ":pg-kueue-core",
-    ":pg-kueue-jdbc",
     ":pg-kueue-utils",
 
     ":pg-kueue-pubsub:pg-kueue-pubsub-core",

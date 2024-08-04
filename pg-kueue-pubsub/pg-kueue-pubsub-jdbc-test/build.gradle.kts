@@ -1,3 +1,7 @@
+plugins {
+    `pg-kueue-base`
+}
+
 dependencies {
     testImplementation(project(":pg-kueue-pubsub:pg-kueue-pubsub-jdbc"))
     testImplementation(project(":pg-kueue-transport:pg-kueue-transport-jdbc"))

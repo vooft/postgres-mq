@@ -1,2 +1,4 @@
-dependencies {
+plugins {
+    `pg-kueue-base`
+    `pg-kueue-publish`
 }

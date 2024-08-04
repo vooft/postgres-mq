@@ -1,5 +1,7 @@
 plugins {
     `java-test-fixtures`
+    `pg-kueue-base`
+    `pg-kueue-publish`
 }
 
 dependencies {
