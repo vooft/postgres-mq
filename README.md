@@ -25,38 +25,38 @@ There is a module that provides a number of helper methods that can work with a 
 
 ## Gradle
 ```kotlin
-    repositories {
-        mavenCentral()
-    }
+repositories {
+    mavenCentral()
+}
 
-    dependencies {
-        implementation("io.github.vooft:pg-kueue-jdbc:<version>")
-    }
+dependencies {
+    implementation("io.github.vooft:pg-kueue-jdbc:<version>")
+}
 ```
 
 ## Simple usage
 ```kotlin
-    val dataSource = createMyDataSource()
+val dataSource = createMyDataSource()
 
-    val kueue = Kueue.jdbc(dataSource)
-    val subscription = kueue.subscribe(KueueTopic("my_topic")) { message: String ->
-        println("Received message: $message")
-    }
+val kueue = Kueue.jdbc(dataSource)
+val subscription = kueue.subscribe(KueueTopic("my_topic")) { message: String ->
+    println("Received message: $message")
+}
 
-    kueue.send(KueueTopic("my_topic"), "Hello, world!")
-    // will print after a tiny delay: "Received message: Hello, world!"
+kueue.send(KueueTopic("my_topic"), "Hello, world!")
+// will print after a tiny delay: "Received message: Hello, world!"
 ```
 
 You can close subscription, if you would like to stop a particular listener:
 ```kotlin
-    subscription.close()
+subscription.close()
 ```
 
 But it is not necessary if the the subscription should exist for the whole Kueue lifecycle.
 
 All subscriptions will be closed automatically when Kueue is closed:
 ```kotlin
-    kueue.close()
+kueue.close()
 ```
 
 ## Transactional usage
@@ -64,14 +64,14 @@ To send a message using existing transaction, you should provide the transaction
 
 Normally, API accepts a instance of a wrapped connection `KueueConnection`, there is a helper method to create it:
 ```kotlin
-    val transactionalConnection = myBeginTransaction()
-    kueue.send(KueueTopic("my_topic"), "Hello, world!", kueue.wrap(transactionalConnection))
+val transactionalConnection = myBeginTransaction()
+kueue.send(KueueTopic("my_topic"), "Hello, world!", kueue.wrap(transactionalConnection))
 ``` 
 
 There is also an extension function for a specific library to simplify transactional sending:
 ```kotlin
-    val transactionalConnection = myBeginTransaction()
-    kueue.send(KueueTopic("my_topic"), "Hello, world!", transactionalConnection) // an extension function must be imported explicitly
+val transactionalConnection = myBeginTransaction()
+kueue.send(KueueTopic("my_topic"), "Hello, world!", transactionalConnection) // an extension function must be imported explicitly
 ```
 
 ## Persistence
@@ -87,22 +87,22 @@ There is a module that accepts a jOOQ `DSLContext` and provides a similar interf
 
 ### Gradle
 ```kotlin
-    repositories {
-        mavenCentral()
-    }
+repositories {
+    mavenCentral()
+}
 
-    dependencies {
-        implementation("io.github.vooft:pg-kueue-jooq-jdbc:<version>")
-    }
+dependencies {
+    implementation("io.github.vooft:pg-kueue-jooq-jdbc:<version>")
+}
 ```
 
 ### Usage
 ```kotlin
-    val dslContext = createMyDslContext()
+val dslContext = createMyDslContext()
 
-    // there is a helper method to create a Kueue instance using, for example, a non-transactional DSLContext
-    val kueue = Kueue.jooq(dslContext)
+// there is a helper method to create a Kueue instance using, for example, a non-transactional DSLContext
+val kueue = Kueue.jooq(dslContext)
 
-    // also there is an extension method that accepts a transactional DSLContext to send notification within a transaction
-    kueue.send(KueueTopic("my_topic"), "Hello, world!", myTransactionalDslContext)
+// also there is an extension method that accepts a transactional DSLContext to send notification within a transaction
+kueue.send(KueueTopic("my_topic"), "Hello, world!", myTransactionalDslContext)
 ```
