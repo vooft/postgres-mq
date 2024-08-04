@@ -4,9 +4,8 @@ plugins {
 }
 
 dependencies {
-    api(project(":pg-kueue-pubsub:pg-kueue-pubsub-core"))
-    implementation(project(":pg-kueue-pubsub:pg-kueue-pubsub-jdbc"))
-    implementation(project(":pg-kueue-transport:pg-kueue-transport-jdbc"))
+    api(project(":pg-kueue-persistence:pg-kueue-persistence-jdbc"))
+
     implementation(project(":pg-kueue-utils"))
     implementation(project(":pg-kueue-utils-jooq"))
 

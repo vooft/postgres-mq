@@ -3,6 +3,12 @@ rootProject.name = "pg-kueue"
 include(
     ":pg-kueue-types",
     ":pg-kueue-utils",
+    ":pg-kueue-utils-jooq",
+
+    ":pg-kueue-persistence:pg-kueue-persistence-core",
+    ":pg-kueue-persistence:pg-kueue-persistence-schema",
+    ":pg-kueue-persistence:pg-kueue-persistence-jdbc",
+    ":pg-kueue-persistence:pg-kueue-persistence-jooq",
 
     ":pg-kueue-pubsub:pg-kueue-pubsub-core",
     ":pg-kueue-pubsub:pg-kueue-pubsub-jdbc",

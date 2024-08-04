@@ -6,7 +6,7 @@ import org.testcontainers.containers.PostgreSQLContainer
 open class IntegrationTest {
     companion object {
         val psql = PostgreSQLContainer<Nothing>("postgres:16-alpine").apply {
-            withDatabaseName("folter")
+            withDatabaseName("pg-kueue")
             withUsername("test")
             withPassword("test")
             start()

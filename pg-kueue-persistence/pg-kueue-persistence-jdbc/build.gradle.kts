@@ -4,19 +4,18 @@ plugins {
 }
 
 dependencies {
-    api(project(":pg-kueue-pubsub:pg-kueue-pubsub-core"))
-    implementation(project(":pg-kueue-pubsub:pg-kueue-pubsub-jdbc"))
-    implementation(project(":pg-kueue-transport:pg-kueue-transport-jdbc"))
-    implementation(project(":pg-kueue-utils"))
-    implementation(project(":pg-kueue-utils-jooq"))
+    api(project(":pg-kueue-persistence:pg-kueue-persistence-core"))
+    api(project(":pg-kueue-transport:pg-kueue-transport-jdbc"))
 
-    compileOnly(libs.jooq)
+    implementation(project(":pg-kueue-utils"))
+
+    compileOnly(libs.pg.jdbc)
 
     testImplementation(testFixtures(project(":pg-kueue-utils")))
+    testImplementation(project(":pg-kueue-persistence:pg-kueue-persistence-schema"))
     testImplementation(libs.bundles.junit)
     testImplementation(libs.bundles.kotest)
     testImplementation(libs.pg.jdbc)
-    testImplementation(libs.jooq)
     testImplementation(libs.slf4j.simple)
-    testImplementation(libs.hikaricp)
+    testImplementation(libs.bundles.flyway)
 }
