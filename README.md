@@ -74,6 +74,12 @@ There is also an extension function for a specific library to simplify transacti
     kueue.send(KueueTopic("my_topic"), "Hello, world!", transactionalConnection) // an extension function must be imported explicitly
 ```
 
+## Persistence
+There is an optional persistence layer that can be used to store messages in the database.
+
+Migration script is located in:
+* [pg-kueue-utils/src/testFixtures/resources/database/1_kueue_events.sql](pg-kueue-utils/src/testFixtures/resources/database/1_kueue_events.sql)
+
 # Additional modules
 ## jOOQ JDBC
 There is a module that accepts a jOOQ `DSLContext` and provides a similar interface to the JDBC module.

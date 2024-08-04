@@ -17,8 +17,6 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import org.intellij.lang.annotations.Language
-import org.postgresql.core.BaseConnection
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -33,7 +31,7 @@ class JdbcKueueConnectionPubSub(private val bufferSize: Int = 100, private val n
         try {
             kueueConnection.useUnwrapped { connection ->
                 withNonCancellable {
-                    val escapedChannel = connection.escapeIdentifier(topic.channel)
+                    val escapedChannel = connection.escapeIdentifier(topic.topic)
                     val escapedMessage = connection.escapeString(message)
 
                     logger.debug { "Executing query" }
@@ -71,7 +69,7 @@ class JdbcKueueConnectionPubSub(private val bufferSize: Int = 100, private val n
             override suspend fun listen(topic: KueueTopic) {
                 if (mutex.withLock { listenedTopics.add(topic) }) {
                     kueueConnection.useUnwrapped { connection ->
-                        val escapedChannel = connection.escapeIdentifier(topic.channel)
+                        val escapedChannel = connection.escapeIdentifier(topic.topic)
                         connection.execute("LISTEN $escapedChannel")
                     }
                 }
@@ -79,7 +77,7 @@ class JdbcKueueConnectionPubSub(private val bufferSize: Int = 100, private val n
 
             override suspend fun unlisten(topic: KueueTopic) {
                 kueueConnection.useUnwrapped { connection ->
-                    val escapedChannel = connection.escapeIdentifier(topic.channel)
+                    val escapedChannel = connection.escapeIdentifier(topic.topic)
                     connection.execute("UNLISTEN $escapedChannel")
                 }
             }
@@ -105,12 +103,3 @@ class JdbcKueueConnectionPubSub(private val bufferSize: Int = 100, private val n
 
     companion object : LoggerHolder()
 }
-
-private suspend fun BaseConnection.execute(@Language("SQL") query: String) = withVirtualThreadDispatcher {
-    createStatement().use {
-        it.execute(query)
-    }
-}
-
-private suspend fun <T> JdbcKueueConnection.useUnwrapped(block: suspend (BaseConnection) -> T): T =
-    block(jdbcConnection.unwrap(BaseConnection::class.java))

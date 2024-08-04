@@ -32,7 +32,7 @@ class JooqTest : IntegrationTest() {
             }
         ).use {
             with(HappyPathTest) {
-                Kueue.jooq(it).happyPathTest()
+                Kueue.jooq(dataSource = it, persistEvents = true).happyPathTest()
             }
         }
     }
@@ -49,7 +49,7 @@ class JooqTest : IntegrationTest() {
 
         val topic = KueueTopic(UUID.randomUUID().toString())
 
-        val kueue = Kueue.jooq(dataSource)
+        val kueue = Kueue.jooq(dataSource = dataSource, persistEvents = true)
 
         try {
             val mutex = Mutex()
@@ -132,7 +132,7 @@ class JooqTest : IntegrationTest() {
 
         val topic = KueueTopic(UUID.randomUUID().toString())
 
-        val kueue = Kueue.jooq(dataSource)
+        val kueue = Kueue.jooq(dataSource = dataSource, persistEvents = true)
 
         try {
             val mutex = Mutex()

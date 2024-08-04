@@ -6,9 +6,13 @@ import io.github.vooft.kueue.impl.KueueImpl
 import java.sql.Connection
 import javax.sql.DataSource
 
-fun Kueue.Companion.jdbc(dataSource: DataSource): Kueue<Connection, JdbcKueueConnection> = KueueImpl(
+fun Kueue.Companion.jdbc(dataSource: DataSource, persistEvents: Boolean): Kueue<Connection, JdbcKueueConnection> = KueueImpl(
     connectionProvider = DataSourceKueueConnectionProvider(dataSource),
-    pubSub = JdbcKueueConnectionPubSub()
+    pubSub = JdbcKueueConnectionPubSub(),
+    persister = when (persistEvents) {
+        true -> JdbcKueueEventPersister()
+        false -> null
+    }
 )
 
 suspend fun Kueue<Connection, JdbcKueueConnection>.send(topic: KueueTopic, message: String, transactionalConnection: Connection) {

@@ -6,6 +6,7 @@ import io.github.vooft.kueue.KueueConnection
 import io.github.vooft.kueue.KueueConnectionProvider
 import io.github.vooft.kueue.KueueConnectionPubSub
 import io.github.vooft.kueue.KueueConnectionPubSub.ListenSubscription
+import io.github.vooft.kueue.KueueEventPersister
 import io.github.vooft.kueue.KueueMessage
 import io.github.vooft.kueue.KueueTopic
 import io.github.vooft.kueue.common.LoggerHolder
@@ -27,7 +28,8 @@ import kotlinx.coroutines.sync.withLock
 @Suppress("detekt:UnusedPrivateProperty")
 class KueueImpl<C, KC : KueueConnection<C>>(
     private val connectionProvider: KueueConnectionProvider<C, KC>,
-    private val pubSub: KueueConnectionPubSub<KC>
+    private val pubSub: KueueConnectionPubSub<KC>,
+    private val persister: KueueEventPersister<KC>?
 ) : Kueue<C, KC> {
 
     private val coroutineScope: CoroutineScope = CoroutineScope(SupervisorJob() + loggingExceptionHandler())
@@ -54,7 +56,10 @@ class KueueImpl<C, KC : KueueConnection<C>>(
     override suspend fun send(topic: KueueTopic, message: String, kueueConnection: KC?) {
         logger.debug { "Sending via $kueueConnection to $topic: $message" }
         val connection = kueueConnection ?: getDefaultConnection()
+
+        persister?.persist(connection, topic, message)
         pubSub.notify(connection, topic, message)
+
         logger.debug { "Successfully sent via $kueueConnection to $topic: $message" }
     }
 

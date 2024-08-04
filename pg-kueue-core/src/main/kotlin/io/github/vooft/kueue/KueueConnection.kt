@@ -53,4 +53,8 @@ interface KueueConnectionPubSub<KC : KueueConnection<*>> {
     }
 }
 
+interface KueueEventPersister<KC : KueueConnection<*>> {
+    suspend fun persist(kueueConnection: KC, topic: KueueTopic, message: String)
+}
+
 data class KueueMessage(val topic: KueueTopic, val message: String)

@@ -18,4 +18,4 @@ interface Kueue<C, KC : KueueConnection<C>> {
 }
 
 @JvmInline
-value class KueueTopic(val channel: String)
+value class KueueTopic(val topic: String)

@@ -9,6 +9,7 @@ import io.github.vooft.kueue.KueueConnectionProvider
 import io.github.vooft.kueue.KueueTopic
 import io.github.vooft.kueue.jdbc.JdbcKueueConnection
 import io.github.vooft.kueue.jdbc.JdbcKueueConnectionPubSub
+import io.github.vooft.kueue.jdbc.JdbcKueueEventPersister
 import io.github.vooft.kueue.jdbc.jdbc
 import io.kotest.assertions.nondeterministic.continually
 import io.kotest.assertions.nondeterministic.eventually
@@ -35,7 +36,7 @@ class JdbcTest : IntegrationTest() {
             }
         ).use {
             with(HappyPathTest) {
-                Kueue.jdbc(it).happyPathTest()
+                Kueue.jdbc(dataSource = it, persistEvents = true).happyPathTest()
             }
         }
     }
@@ -59,7 +60,11 @@ class JdbcTest : IntegrationTest() {
 
         val topics = List(10) { KueueTopic(UUID.randomUUID().toString()) }
 
-        val kueue = KueueImpl(connectionFactory, JdbcKueueConnectionPubSub())
+        val kueue = KueueImpl(
+            connectionProvider = connectionFactory,
+            pubSub = JdbcKueueConnectionPubSub(),
+            persister = JdbcKueueEventPersister()
+        )
         try {
             val mutex = Mutex()
             val consumed = mutableMapOf<KueueTopic, MutableList<String>>()
@@ -126,7 +131,7 @@ class JdbcTest : IntegrationTest() {
 
         val topic = KueueTopic(UUID.randomUUID().toString())
 
-        val kueue = Kueue.jdbc(dataSource)
+        val kueue = Kueue.jdbc(dataSource = dataSource, persistEvents = true)
 
         try {
             val mutex = Mutex()
@@ -209,7 +214,7 @@ class JdbcTest : IntegrationTest() {
 
         val topic = KueueTopic(UUID.randomUUID().toString())
 
-        val kueue = Kueue.jdbc(dataSource)
+        val kueue = Kueue.jdbc(dataSource = dataSource, persistEvents = true)
 
         try {
             val mutex = Mutex()

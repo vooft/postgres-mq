@@ -6,6 +6,7 @@ import io.github.vooft.kueue.impl.KueueImpl
 import io.github.vooft.kueue.jdbc.DataSourceKueueConnectionProvider
 import io.github.vooft.kueue.jdbc.JdbcKueueConnection
 import io.github.vooft.kueue.jdbc.JdbcKueueConnectionPubSub
+import io.github.vooft.kueue.jdbc.JdbcKueueEventPersister
 import org.jooq.DSLContext
 import java.sql.Connection
 import javax.sql.DataSource
@@ -13,10 +14,15 @@ import javax.sql.DataSource
 typealias JoodJdbcKueueConnection = JdbcKueueConnection
 typealias JooqDataSourceKueueConnectionProvider = DataSourceKueueConnectionProvider
 typealias JooqJdbcKueueConnectionPubSub = JdbcKueueConnectionPubSub
+typealias JooqJdbcKueueEventPersister = JdbcKueueEventPersister
 
-fun Kueue.Companion.jooq(dataSource: DataSource): Kueue<Connection, JoodJdbcKueueConnection> = KueueImpl(
+fun Kueue.Companion.jooq(dataSource: DataSource, persistEvents: Boolean): Kueue<Connection, JoodJdbcKueueConnection> = KueueImpl(
     connectionProvider = JooqDataSourceKueueConnectionProvider(dataSource),
-    pubSub = JooqJdbcKueueConnectionPubSub()
+    pubSub = JooqJdbcKueueConnectionPubSub(),
+    persister = when (persistEvents) {
+        true -> JooqJdbcKueueEventPersister()
+        false -> null
+    }
 )
 
 suspend fun Kueue<Connection, JoodJdbcKueueConnection>.send(topic: KueueTopic, message: String, transactionalDsl: DSLContext) {
