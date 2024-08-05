@@ -51,3 +51,7 @@ style:
 coroutines:
   SuspendFunWithFlowReturnType:
     active: false
+
+potential-bugs:
+  UnreachableCode:
+    active: false

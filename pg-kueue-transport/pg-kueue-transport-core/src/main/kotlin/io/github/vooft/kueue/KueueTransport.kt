@@ -1,6 +1,6 @@
 package io.github.vooft.kueue
 
-import kotlinx.coroutines.channels.ReceiveChannel
+import kotlinx.coroutines.flow.Flow
 
 interface KueueTransport<KC : KueueConnection<*>> {
 
@@ -8,7 +8,7 @@ interface KueueTransport<KC : KueueConnection<*>> {
     suspend fun createListener(kueueConnection: KC): Listener
 
     interface Listener {
-        val messages: ReceiveChannel<KueueMessage>
+        val messages: Flow<TopicMessage>
         val isClosed: Boolean
         suspend fun listen(topic: KueueTopic)
         suspend fun unlisten(topic: KueueTopic)

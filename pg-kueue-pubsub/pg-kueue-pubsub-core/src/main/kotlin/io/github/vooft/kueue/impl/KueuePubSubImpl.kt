@@ -2,11 +2,11 @@ package io.github.vooft.kueue.impl
 
 import io.github.vooft.kueue.KueueConnection
 import io.github.vooft.kueue.KueueConnectionProvider
-import io.github.vooft.kueue.KueueMessage
 import io.github.vooft.kueue.KueuePubSub
 import io.github.vooft.kueue.KueuePubSub.KueueSubscription
 import io.github.vooft.kueue.KueueTopic
 import io.github.vooft.kueue.KueueTransport
+import io.github.vooft.kueue.TopicMessage
 import io.github.vooft.kueue.common.LoggerHolder
 import io.github.vooft.kueue.common.loggingExceptionHandler
 import io.github.vooft.kueue.common.withNonCancellable
@@ -16,7 +16,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -45,7 +44,7 @@ class KueuePubSubImpl<C, KC : KueueConnection<C>>(
     private val defaultConnectionMutex = Mutex()
     private val defaultConnectionState = MutableStateFlow<KC?>(null)
 
-    private val multiplexer = Channel<KueueMessage>()
+    private val multiplexer = Channel<TopicMessage>()
     private val broadcaster = KueueMessageBroadcaster(multiplexer)
 
     override suspend fun publish(topic: KueueTopic, message: String, kueueConnection: KC?) {
@@ -93,7 +92,7 @@ class KueuePubSubImpl<C, KC : KueueConnection<C>>(
             val connection = getDefaultConnection()
             transport.createListener(connection).also { listener ->
                 resubscribe(listener)
-                coroutineScope.launch { listener.messages.consumeEach { multiplexer.send(it) } }
+                coroutineScope.launch { listener.messages.collect { multiplexer.send(it) } }
             }
         }.also { runningListener = it }
     }

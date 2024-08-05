@@ -1,7 +1,7 @@
 package io.github.vooft.kueue.impl
 
-import io.github.vooft.kueue.KueueMessage
 import io.github.vooft.kueue.KueueTopic
+import io.github.vooft.kueue.TopicMessage
 import io.github.vooft.kueue.common.LoggerHolder
 import io.github.vooft.kueue.common.loggingExceptionHandler
 import kotlinx.coroutines.CoroutineScope
@@ -21,7 +21,7 @@ import kotlinx.coroutines.withContext
 import kotlin.coroutines.coroutineContext
 
 internal class KueueMessageBroadcaster(
-    private val channel: ReceiveChannel<KueueMessage>,
+    private val channel: ReceiveChannel<TopicMessage>,
     coroutineScope: CoroutineScope = CoroutineScope(Job() + loggingExceptionHandler())
 ) {
 

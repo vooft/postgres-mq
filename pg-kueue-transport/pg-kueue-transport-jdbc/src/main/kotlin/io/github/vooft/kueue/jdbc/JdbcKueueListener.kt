@@ -1,17 +1,17 @@
 package io.github.vooft.kueue.jdbc
 
-import io.github.vooft.kueue.KueueMessage
 import io.github.vooft.kueue.KueueTopic
 import io.github.vooft.kueue.KueueTransport
+import io.github.vooft.kueue.TopicMessage
 import io.github.vooft.kueue.common.withNonCancellable
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
-import kotlinx.coroutines.channels.ReceiveChannel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
 internal class JdbcKueueListener(
-    override val messages: ReceiveChannel<KueueMessage>,
+    override val messages: Flow<TopicMessage>,
     private val connection: JdbcKueueConnection,
     private val queryNotificationsJob: Job
 ) : KueueTransport.Listener {

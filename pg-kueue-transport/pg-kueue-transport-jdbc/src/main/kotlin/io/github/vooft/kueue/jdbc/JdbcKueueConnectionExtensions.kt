@@ -1,7 +1,7 @@
 package io.github.vooft.kueue.jdbc
 
-import io.github.vooft.kueue.KueueMessage
 import io.github.vooft.kueue.KueueTopic
+import io.github.vooft.kueue.TopicMessage
 import io.github.vooft.kueue.common.withVirtualThreadDispatcher
 import io.github.vooft.kueue.useUnwrapped
 import org.intellij.lang.annotations.Language
@@ -13,8 +13,8 @@ internal suspend fun BaseConnection.execute(@Language("SQL") query: String) =
 internal suspend fun <T> JdbcKueueConnection.useBaseConnection(block: suspend (BaseConnection) -> T): T =
     useUnwrapped { block(connection.unwrap(BaseConnection::class.java)) }
 
-internal suspend fun JdbcKueueConnection.queryNotifications(): List<KueueMessage> = useBaseConnection { connection ->
+internal suspend fun JdbcKueueConnection.queryNotifications(): List<TopicMessage> = useBaseConnection { connection ->
     withVirtualThreadDispatcher { connection.notifications }
-        ?.map { KueueMessage(KueueTopic(it.name), it.parameter) }
+        ?.map { TopicMessage(KueueTopic(it.name), it.parameter) }
         ?: listOf()
 }

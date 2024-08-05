@@ -1,8 +1,8 @@
 package io.github.vooft.kueue.jdbc
 
-import io.github.vooft.kueue.KueueMessage
 import io.github.vooft.kueue.KueueTopic
 import io.github.vooft.kueue.KueueTransport
+import io.github.vooft.kueue.TopicMessage
 import io.github.vooft.kueue.common.LoggerHolder
 import io.github.vooft.kueue.common.loggingExceptionHandler
 import io.github.vooft.kueue.common.withNonCancellable
@@ -10,6 +10,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.consumeAsFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.time.Duration
@@ -43,7 +44,7 @@ class JdbcKueueTransport(private val bufferSize: Int = 100, private val notifica
     }
 
     override suspend fun createListener(kueueConnection: JdbcKueueConnection): KueueTransport.Listener {
-        val channel = Channel<KueueMessage>(capacity = bufferSize)
+        val channel = Channel<TopicMessage>(capacity = bufferSize)
         val job = coroutineScope.launch {
             while (isActive && !kueueConnection.isClosed) {
                 val messages = withNonCancellable { kueueConnection.queryNotifications() }
@@ -52,7 +53,7 @@ class JdbcKueueTransport(private val bufferSize: Int = 100, private val notifica
             }
         }
 
-        return JdbcKueueListener(channel, kueueConnection, job)
+        return JdbcKueueListener(channel.consumeAsFlow(), kueueConnection, job)
     }
 
     companion object : LoggerHolder()
