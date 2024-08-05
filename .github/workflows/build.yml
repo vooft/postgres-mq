@@ -32,10 +32,10 @@ jobs:
           docker pull postgres:16-alpine
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v3
+        uses: gradle/actions/setup-gradle@v4
 
       - name: Generate and submit dependency graph
-        uses: gradle/actions/dependency-submission@v3
+        uses: gradle/actions/dependency-submission@v4
 
       - name: Build for ${{ github.ref }}
         run: ./gradlew build --parallel
